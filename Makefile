@@ -3,4 +3,4 @@ build:
 	cp LICENSE COPYRIGHT NOTICE README.md out/
 
 format:
-	dotnet format TrackTagger.csproj --verbosity diag --severity info --include-generated
+	dotnet format TrackTagger.csproj --verbosity diag --severity info --include-generated --exclude-diagnostics SYSLIB1045

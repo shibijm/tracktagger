@@ -11,7 +11,7 @@ namespace TrackTagger.UI;
 
 public partial class MainForm : Form {
 
-	private readonly List<CustomItem> items = [];
+	private readonly List<TrackListViewItem> items = [];
 	public string tempDirectory;
 	private readonly ListViewColumnSorter listViewColumnSorter = new();
 
@@ -22,7 +22,7 @@ public partial class MainForm : Form {
 	}
 
 	private void MainForm_Load(object sender, EventArgs e) {
-		filesListView.ListViewItemSorter = listViewColumnSorter;
+		trackListView.ListViewItemSorter = listViewColumnSorter;
 	}
 
 	private void MainForm_DragEnter(object sender, DragEventArgs e) {
@@ -37,10 +37,10 @@ public partial class MainForm : Form {
 	}
 
 	private void ImportFolderButton_Click(object sender, EventArgs e) {
-		folderBrowserDialog1.SelectedPath = Environment.CurrentDirectory;
-		DialogResult result = folderBrowserDialog1.ShowDialog();
+		importFolderDialog.SelectedPath = Environment.CurrentDirectory;
+		DialogResult result = importFolderDialog.ShowDialog();
 		if (result == DialogResult.OK) {
-			string[] files = Directory.GetFiles(folderBrowserDialog1.SelectedPath, "*.mp3", importSubfoldersCheckBox.Checked ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+			string[] files = Directory.GetFiles(importFolderDialog.SelectedPath, "*.mp3", importSubfoldersCheckBox.Checked ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
 			ImportFiles(files);
 		}
 	}
@@ -50,7 +50,8 @@ public partial class MainForm : Form {
 			if (Directory.Exists(filePath)) {
 				ImportFiles(Directory.GetFiles(filePath, "*.mp3", importSubfoldersCheckBox.Checked ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly));
 			} else if (Path.GetExtension(filePath) == ".mp3") {
-				CustomItem item = new(this, filePath);
+				TrackListViewItem item = new(this, filePath);
+				trackListView.Items.Add(item);
 				items.Add(item);
 				if (matchOnImportCheckBox.Checked) {
 					item.StartThread();
@@ -65,34 +66,27 @@ public partial class MainForm : Form {
 		if (InvokeRequired) {
 			Invoke(new Action(() => UpdateSearchControls()));
 		} else {
-			if (filesListView.SelectedItems.Count > 0) {
-				CustomItem item = (CustomItem) filesListView.SelectedItems[0];
-				searchBox.Text = item.searchString;
-				if (item.status == 0) {
-					searchBox.Enabled = false;
-					addCustomResultButton.Enabled = false;
-				} else {
-					searchBox.Enabled = true;
-					addCustomResultButton.Enabled = true;
-				}
+			if (trackListView.SelectedItems.Count > 0) {
+				TrackListViewItem item = (TrackListViewItem) trackListView.SelectedItems[0];
+				searchTextBox.Text = item.searchString;
+				searchTextBox.Enabled = item.status != 0;
 				if (item.status == 1) {
-					searchResultsDropDown.Items.Clear();
-					foreach (SearchResult searchResult in item.searchResults) {
-						searchResultsDropDown.Items.Add(searchResult.OriginalArtist + " - " + searchResult.OriginalTitle);
+					tracksDropDown.Items.Clear();
+					foreach (Track track in item.tracks) {
+						tracksDropDown.Items.Add(track.OriginalArtist + " - " + track.OriginalTitle);
 					}
-					searchResultsDropDown.Enabled = true;
-					searchResultsDropDown.SelectedIndex = item.index;
+					tracksDropDown.Enabled = true;
+					tracksDropDown.SelectedIndex = item.index;
 				} else {
-					searchResultsDropDown.Items.Clear();
+					tracksDropDown.Items.Clear();
 					albumArtPicture.Image = Properties.Resources.DefaultAlbumArt;
-					searchResultsDropDown.Enabled = false;
+					tracksDropDown.Enabled = false;
 				}
 			} else {
-				searchBox.Enabled = false;
-				searchResultsDropDown.Enabled = false;
-				searchBox.Text = "";
-				searchResultsDropDown.Items.Clear();
-				addCustomResultButton.Enabled = false;
+				searchTextBox.Enabled = false;
+				tracksDropDown.Enabled = false;
+				searchTextBox.Text = "";
+				tracksDropDown.Items.Clear();
 				albumArtPicture.Image = Properties.Resources.DefaultAlbumArt;
 			}
 		}
@@ -101,8 +95,8 @@ public partial class MainForm : Form {
 	private void SearchBox_KeyDown(object sender, KeyEventArgs e) {
 		if (e.KeyCode == Keys.Enter) {
 			e.SuppressKeyPress = true;
-			foreach (CustomItem item in filesListView.SelectedItems) {
-				item.searchString = searchBox.Text;
+			foreach (TrackListViewItem item in trackListView.SelectedItems) {
+				item.searchString = searchTextBox.Text;
 				if (item.status != 0) {
 					item.StartThread();
 				}
@@ -110,20 +104,20 @@ public partial class MainForm : Form {
 		}
 	}
 
-	private void SearchResultsDropDown_SelectedIndexChanged(object sender, EventArgs e) {
-		CustomItem item = (CustomItem) filesListView.SelectedItems[0];
-		item.index = searchResultsDropDown.SelectedIndex;
+	private void TracksDropDown_SelectedIndexChanged(object sender, EventArgs e) {
+		TrackListViewItem item = (TrackListViewItem) trackListView.SelectedItems[0];
+		item.index = tracksDropDown.SelectedIndex;
 		item.UpdateListViewItem();
 		try {
-			albumArtPicture.Load(item.searchResults[item.index].AlbumArtFilePath);
+			albumArtPicture.Load(item.tracks[item.index].AlbumArtFilePath);
 		} catch {
 			albumArtPicture.Image = Properties.Resources.DefaultAlbumArt;
 		}
 	}
 
 	private void UnmatchButton_Click(object sender, EventArgs e) {
-		dynamic target = filesListView.SelectedItems.Count > 0 ? filesListView.SelectedItems : filesListView.Items;
-		foreach (CustomItem item in target) {
+		dynamic target = trackListView.SelectedItems.Count > 0 ? trackListView.SelectedItems : trackListView.Items;
+		foreach (TrackListViewItem item in target) {
 			if (item.status == 1) {
 				item.SetStatus(-1, "Unmatched");
 			}
@@ -131,8 +125,8 @@ public partial class MainForm : Form {
 	}
 
 	private void MatchButton_Click(object sender, EventArgs e) {
-		dynamic target = filesListView.SelectedItems.Count > 0 ? filesListView.SelectedItems : filesListView.Items;
-		foreach (CustomItem item in target) {
+		dynamic target = trackListView.SelectedItems.Count > 0 ? trackListView.SelectedItems : trackListView.Items;
+		foreach (TrackListViewItem item in target) {
 			if (item.status == -1) {
 				item.ResetSearchString();
 				item.StartThread();
@@ -141,7 +135,7 @@ public partial class MainForm : Form {
 	}
 
 	private void FilesListView_SelectedIndexChanged(object sender, EventArgs e) {
-		if (filesListView.SelectedItems.Count > 0) {
+		if (trackListView.SelectedItems.Count > 0) {
 			matchButton.Text = "Match Selected";
 			unmatchButton.Text = "Unmatch Selected";
 			tagButton.Text = "Tag Selected Matched";
@@ -155,28 +149,28 @@ public partial class MainForm : Form {
 
 	private void FilesListView_KeyDown(object sender, KeyEventArgs e) {
 		if (e.KeyCode == Keys.Delete) {
-			foreach (CustomItem item in filesListView.SelectedItems) {
+			foreach (TrackListViewItem item in trackListView.SelectedItems) {
 				RemoveItem(item);
 			}
 		} else if (e.KeyCode == Keys.A && e.Control) {
-			foreach (CustomItem item in filesListView.Items) {
+			foreach (TrackListViewItem item in trackListView.Items) {
 				item.Selected = true;
 			}
 		} else if (e.KeyCode == Keys.Escape) {
-			filesListView.SelectedIndices.Clear();
+			trackListView.SelectedIndices.Clear();
 		}
 	}
 
 	private void TagButton_Click(object sender, EventArgs e) {
 		Enabled = false;
-		dynamic target = filesListView.SelectedItems.Count > 0 ? filesListView.SelectedItems : filesListView.Items;
-		foreach (CustomItem item in target) {
+		dynamic target = trackListView.SelectedItems.Count > 0 ? trackListView.SelectedItems : trackListView.Items;
+		foreach (TrackListViewItem item in target) {
 			TagItem(item);
 		}
 		Enabled = true;
 	}
 
-	private void TagItem(CustomItem item) {
+	private void TagItem(TrackListViewItem item) {
 		if (item.status == 1) {
 			try {
 				DateTime lastWriteTime = File.GetLastWriteTime(item.filePath);
@@ -186,36 +180,36 @@ public partial class MainForm : Form {
 					tagLibFile.Save();
 					tagLibFile = TagLib.File.Create(item.filePath);
 				}
-				SearchResult searchResult = item.searchResults[item.index];
-				if (albumArtCheckBox.Checked && File.Exists(searchResult.AlbumArtFilePath)) {
-					tagLibFile.Tag.Pictures = [new TagLib.Picture(searchResult.AlbumArtFilePath)];
+				Track track = item.tracks[item.index];
+				if (albumArtCheckBox.Checked && File.Exists(track.AlbumArtFilePath)) {
+					tagLibFile.Tag.Pictures = [new TagLib.Picture(track.AlbumArtFilePath)];
 				}
 				if (artistCheckBox.Checked) {
-					tagLibFile.Tag.Performers = [searchResult.Artist];
+					tagLibFile.Tag.Performers = [track.Artist];
 				}
 				if (titleCheckBox.Checked) {
-					tagLibFile.Tag.Title = searchResult.Title;
+					tagLibFile.Tag.Title = track.Title;
 				}
 				if (albumCheckBox.Checked) {
-					tagLibFile.Tag.Album = searchResult.Album;
+					tagLibFile.Tag.Album = track.Album;
 				}
 				if (yearCheckBox.Checked) {
-					tagLibFile.Tag.Year = searchResult.Year;
+					tagLibFile.Tag.Year = track.Year;
 				}
 				if (genreCheckBox.Checked) {
-					tagLibFile.Tag.Genres = [searchResult.Genre];
+					tagLibFile.Tag.Genres = [track.Genre];
 				}
 				if (trackNumberCheckBox.Checked) {
-					tagLibFile.Tag.Track = searchResult.Track;
-					tagLibFile.Tag.TrackCount = searchResult.TrackCount;
+					tagLibFile.Tag.Track = track.TrackNumber;
+					tagLibFile.Tag.TrackCount = track.TrackCount;
 				}
 				tagLibFile.RemoveTags(TagLib.TagTypes.AllTags & ~TagLib.TagTypes.Id3v2);
 				tagLibFile.Save();
 				File.SetLastWriteTime(item.filePath, lastWriteTime);
 				if (renameFilesCheckBox.Checked) {
-					string newFileName = namingSchemeTextBox.Text.Replace(".mp3", "").Replace("%artist%", searchResult.Artist).Replace("%title%", searchResult.Title).Replace("%album%", searchResult.Album).Replace("%year%", searchResult.Year.ToString()).Replace("%genre%", searchResult.Genre).Replace("%track%", searchResult.Track.ToString().PadLeft(2, '0')).Replace("%trackCount%", searchResult.TrackCount.ToString().PadLeft(2, '0')) + ".mp3";
+					string newFileName = namingSchemeTextBox.Text.Replace(".mp3", "").Replace("%artist%", track.Artist).Replace("%title%", track.Title).Replace("%album%", track.Album).Replace("%year%", track.Year.ToString()).Replace("%genre%", track.Genre).Replace("%track%", track.TrackNumber.ToString().PadLeft(2, '0')).Replace("%trackCount%", track.TrackCount.ToString().PadLeft(2, '0')) + ".mp3";
 					newFileName = string.Join("", newFileName.Split(Path.GetInvalidFileNameChars()));
-					string newRootFolder = rootFolderTextBox.Text.Replace("%originalFolder%", Path.GetDirectoryName(item.filePath)).Trim().Replace("%artist%", searchResult.Artist).Replace("%title%", searchResult.Title).Replace("%album%", searchResult.Album).Replace("%year%", searchResult.Year.ToString()).Replace("%genre%", searchResult.Genre).Replace("%track%", searchResult.Track.ToString().PadLeft(2, '0')).Replace("%trackCount%", searchResult.TrackCount.ToString().PadLeft(2, '0'));
+					string newRootFolder = rootFolderTextBox.Text.Replace("%originalFolder%", Path.GetDirectoryName(item.filePath)).Trim().Replace("%artist%", track.Artist).Replace("%title%", track.Title).Replace("%album%", track.Album).Replace("%year%", track.Year.ToString()).Replace("%genre%", track.Genre).Replace("%track%", track.TrackNumber.ToString().PadLeft(2, '0')).Replace("%trackCount%", track.TrackCount.ToString().PadLeft(2, '0'));
 					string newFilePath = newRootFolder + "\\" + newFileName;
 					Directory.CreateDirectory(newRootFolder);
 					File.Move(item.filePath, newFilePath);
@@ -227,7 +221,7 @@ public partial class MainForm : Form {
 		}
 	}
 
-	private void RemoveItem(CustomItem item) {
+	private void RemoveItem(TrackListViewItem item) {
 		item.Remove();
 		items.Remove(item);
 	}
@@ -239,28 +233,16 @@ public partial class MainForm : Form {
 			listViewColumnSorter.SortColumn = e.Column;
 			listViewColumnSorter.Order = SortOrder.Ascending;
 		}
-		filesListView.Sort();
-	}
-
-	private void AddCustomResultButton_Click(object sender, EventArgs e) {
-		MessageBox.Show("TBD");
-		new CustomResultForm(this).ShowDialog();
-	}
-
-	public void CustomResultCallback(SearchResult searchResult) {
-		foreach (CustomItem item in filesListView.SelectedItems) {
-			if (item.status != 0) {
-				item.searchResults.Add(searchResult);
-				item.index = item.searchResults.Count - 1;
-				item.SetStatus(1, "Matched");
-			}
-		}
+		trackListView.Sort();
 	}
 
 	private void AlbumArtPicture_DoubleClick(object sender, EventArgs e) {
-		if (filesListView.SelectedItems.Count > 0) {
-			CustomItem item = (CustomItem) filesListView.SelectedItems[0];
-			Process.Start(item.searchResults[item.index].AlbumArtFilePath);
+		if (trackListView.SelectedItems.Count > 0) {
+			TrackListViewItem item = (TrackListViewItem) trackListView.SelectedItems[0];
+			using Process process = new();
+			process.StartInfo.FileName = "explorer";
+			process.StartInfo.Arguments = "\"" + item.tracks[item.index].AlbumArtFilePath + "\"";
+			process.Start();
 		}
 	}
 
