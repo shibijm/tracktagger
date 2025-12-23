@@ -228,7 +228,7 @@ public partial class TrackListViewItem : ListViewItem {
 			tagLibFile.Dispose();
 			File.SetLastWriteTime(FilePath, lastWriteTime);
 			if (options.RenameFiles) {
-				string newBasePath = SanitiseFileName(SelectedTrack.PopulateTemplate(options.BasePathTemplate)).Replace("%originalFolder%", Path.GetDirectoryName(FilePath));
+				string newBasePath = SanitisePath(SelectedTrack.PopulateTemplate(options.BasePathTemplate)).Replace("%originalFolder%", Path.GetDirectoryName(FilePath));
 				if (!Directory.Exists(newBasePath)) {
 					Directory.CreateDirectory(newBasePath);
 				}
@@ -243,6 +243,10 @@ public partial class TrackListViewItem : ListViewItem {
 			SetStatus(-1, $"Error: {e.Message}");
 			return false;
 		}
+	}
+
+	private static string SanitisePath(string fileName) {
+		return string.Concat(fileName.Split(Path.GetInvalidPathChars()));
 	}
 
 	private static string SanitiseFileName(string fileName) {
