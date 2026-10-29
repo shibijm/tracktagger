@@ -198,7 +198,10 @@ public partial class TrackListViewItem : ListViewItem {
 				tagLibFile = TagLib.File.Create(FilePath);
 			}
 			if (options.UpdateAlbumArt && File.Exists(SelectedTrack.AlbumArtFilePath)) {
-				tagLibFile.Tag.Pictures = [new TagLib.Picture(SelectedTrack.AlbumArtFilePath)];
+				TagLib.Picture picture = new(SelectedTrack.AlbumArtFilePath) {
+					Description = ""
+				};
+				tagLibFile.Tag.Pictures = [picture];
 			}
 			if (options.UpdateArtist) {
 				tagLibFile.Tag.Performers = [SelectedTrack.Artist];
