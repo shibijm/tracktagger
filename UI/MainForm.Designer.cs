@@ -500,8 +500,8 @@
 			// discNumberCheckBox
 			// 
 			discNumberCheckBox.AutoSize = true;
-			discNumberCheckBox.Checked = true;
-			discNumberCheckBox.CheckState = System.Windows.Forms.CheckState.Checked;
+			discNumberCheckBox.Checked = false;
+			discNumberCheckBox.CheckState = System.Windows.Forms.CheckState.Unchecked;
 			discNumberCheckBox.Location = new System.Drawing.Point(98, 641);
 			discNumberCheckBox.Margin = new System.Windows.Forms.Padding(2, 3, 2, 3);
 			discNumberCheckBox.Name = "discNumberCheckBox";
