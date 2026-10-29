@@ -109,7 +109,7 @@ public partial class TrackListViewItem : ListViewItem {
 		using HttpClient httpClient = new();
 		string response = "";
 		try {
-			response = await httpClient.GetStringAsync($"https://itunes.apple.com/search?media=music&entity=song&term={Query}");
+			response = await httpClient.GetStringAsync($"https://itunes.apple.com/search?media=music&entity=song&explicit=Yes&country=US&term={Query}");
 		} catch (Exception e) {
 			SetStatus(-1, $"Error: {e.Message}");
 			return;
